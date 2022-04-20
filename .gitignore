@@ -5,6 +5,7 @@
 !/.flake8
 !/Makefile
 !/pyproject.toml
+!/poetry.lock
 !/README.md
 !/tests
 !/LICENSE.txt
