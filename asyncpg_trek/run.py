@@ -36,7 +36,13 @@ async def run(
             return
         direction, migration_path = maybe_migration_path
         path_txt = "".join(
-            [f"{node.from_revision} -> {node.to_revision}" for node in migration_path]
+            [
+                f"{node.from_revision.revision if node.from_revision else ''}"
+                +
+                (" ->" if node.from_revision else '')
+                +
+                f" {node.to_revision.revision if node.to_revision else ''}"
+                for node in migration_path]
         )
         msg_dir = {"up": "Upgrade", "down": "Downgrade"}[direction]
         logger.info(f"{msg_dir} path calculated: {path_txt}")
