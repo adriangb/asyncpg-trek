@@ -57,7 +57,12 @@ def collect_sorted_versions(
         if path.suffix.endswith(".py"):
             revision = path.stem
         else:
-            revision = path.stem.removesuffix(".up").removesuffix(".down")
+            if path.stem.endswith(".up"):
+                revision = path.stem[:-3]
+            elif path.stem.endswith(".down"):
+                revision = path.stem[:-5]
+            else:
+                revision = path.stem
         if not REVISION_PATTERN.match(revision):
             raise ValueError(
                 f'Invalid revision "{revision}".'
