@@ -16,7 +16,6 @@ install-poetry: .install-poetry
 	rm -rf .venv
 	poetry install
 	git init .
-	poetry run pre-commit install --install-hooks
 	touch .init
 
 .clean:
@@ -24,9 +23,10 @@ install-poetry: .install-poetry
 	poetry -V || rm -rf .install-poetry
 
 init: .clean .init
+	poetry run pre-commit install --install-hooks
 	@echo ---- 🔧 Re-initialized project ----
 
-lint: .init
+lint: .lint
 	@echo ---- ⏳ Running linters ----
 	@(poetry run pre-commit run --all-files && echo "---- ✅ Linting passed ----" && exit 0|| echo "---- ❌ Linting failed ----" && exit 1)
 
