@@ -54,7 +54,7 @@ class InMemoryBackend:
         to_revision: Optional[str],
     ) -> None:
         connection.execute(
-            f"INSERT INTO migrations(from_revision, to_revision) VALUES (?, ?)",
+            "INSERT INTO migrations(from_revision, to_revision) VALUES (?, ?)",
             (from_revision, to_revision),
         )
 
