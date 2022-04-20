@@ -26,7 +26,7 @@ init: .clean .init
 	poetry run pre-commit install --install-hooks
 	@echo ---- 🔧 Re-initialized project ----
 
-lint: .lint
+lint: .init
 	@echo ---- ⏳ Running linters ----
 	@(poetry run pre-commit run --all-files && echo "---- ✅ Linting passed ----" && exit 0|| echo "---- ❌ Linting failed ----" && exit 1)
 

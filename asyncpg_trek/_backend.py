@@ -1,5 +1,7 @@
 import pathlib
-from typing import AsyncContextManager, Awaitable, Callable, Optional, Protocol, TypeVar
+from typing import AsyncContextManager, Awaitable, Callable, Optional, TypeVar
+
+from asyncpg_trek._typing import Protocol
 
 T = TypeVar("T")
 
