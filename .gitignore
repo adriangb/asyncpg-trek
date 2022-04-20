@@ -1,0 +1,12 @@
+/*
+!/.gitignore
+!/asyncpg_trek
+!/.pre-commit-config.yaml
+!/Makefile
+!/pyproject.toml
+!/README.md
+!/tests
+!/LICENSE.txt
+
+.DS_Store
+__pycache__

@@ -1,1 +1,1 @@
-# asyncpg-trek
+# asyncpg-trek: simple migrations for asyncpg
