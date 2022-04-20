@@ -1,12 +1,13 @@
-from typing import Awaitable, Callable, NamedTuple, Optional
+from dataclasses import dataclass
+from typing import Awaitable, Callable, Generic, Optional, TypeVar
 
-import asyncpg  # type: ignore[import]
+T = TypeVar("T")
+
+Operation = Callable[[T], Awaitable[None]]
 
 
-Operation = Callable[[asyncpg.Connection], Awaitable[None]]
-
-
-class Revision(NamedTuple):
+@dataclass
+class Revision(Generic[T]):
     revision: str
-    upgrade: Optional[Operation] = None
-    downgrade: Optional[Operation] = None
+    upgrade: Optional[Operation[T]] = None
+    downgrade: Optional[Operation[T]] = None
