@@ -1,0 +1,1 @@
+DROP INDEX some_idx

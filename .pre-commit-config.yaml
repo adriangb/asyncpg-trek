@@ -1,0 +1,65 @@
+exclude: "^.venv/.*|.html"
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: "v4.0.1"
+    hooks:
+    - id: trailing-whitespace
+    - id: check-yaml
+    - id: pretty-format-json
+      args: ["--autofix"]
+    - id: check-merge-conflict
+  - repo: local
+    hooks:
+    - id: lockfile
+      name: check poetry.lock
+      language: system
+      entry: poetry lock --no-update
+      files: ^pyproject.toml|poetry.lock$
+      pass_filenames: false
+    - id: isort-source
+      name: isort-source
+      language: system
+      entry: poetry run isort ./asyncpg_trek
+      types: [python]
+      pass_filenames: false
+    - id: isort-tests
+      name: isort-tests
+      language: system
+      entry: poetry run isort ./tests
+      types: [python]
+      pass_filenames: false
+    - id: isort-docs
+      name: isort-docs
+      language: system
+      entry: poetry run isort -l 70 ./docs_src
+      types: [python]
+      pass_filenames: false
+    - id: blacken-source
+      name: blacken-source
+      language: system
+      entry: poetry run black ./asyncpg_trek
+      types: [python]
+      pass_filenames: false
+    - id: blacken-tests
+      name: blacken-tests
+      language: system
+      entry: poetry run black ./tests
+      types: [python]
+      pass_filenames: false
+    - id: blacken-docs
+      name: blacken-docs
+      language: system
+      entry: poetry run black -l 70 ./docs_src
+      types: [python]
+      pass_filenames: false
+    - id: flake8
+      name: flake8
+      language: system
+      entry: poetry run flake8
+      types: [python]
+    - id: mypy
+      name: mypy
+      language: system
+      entry: poetry run mypy
+      types: [python]
+      pass_filenames: false

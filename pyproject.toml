@@ -1,0 +1,79 @@
+[tool.poetry]
+name = "asyncpg-trek"
+version = "0.1.0"
+description = "A simple migrations system for asyncpg"
+authors = ["Adrian Garcia Badaracco <adrian@adriangb.com>"]
+readme = "README.md"
+repository = "https://github.com/adriangb/asyncpg-trek"
+documentation = "https://github.com/adriangb/asyncpg-trek"
+keywords = ["asyncpg", "postgres", "postgresql", "migrations"]
+license = "MIT"
+classifiers = [
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python",
+    "Typing :: Typed",
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.7,<4"
+asyncpg = "^0.25.0"
+
+[tool.poetry.dev-dependencies]
+# linting
+black = "~22"
+flake8 = "~3"
+isort = "~5"
+mypy = ">=v0.930"
+pre-commit = "~2"
+# testing
+pytest = "~6"
+pytest-cov = { version = "~3" }
+pytest-sugar = "~0"
+coverage = { extras = ["toml"], version = "~6" }
+pytest-asyncio = "^0.18.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"
+
+[tool.coverage.run]
+branch = true
+source = ["asyncpg_trek", "tests", "docs"]
+dynamic_context = "test_function"
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    '\.\.\.',
+    "raise NotImplementedError",
+    "TYPE_CHECKING",
+    "__repr__",
+    "import",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.black]
+exclude = 'docs\/.*\.py$'
+
+[tool.mypy]
+files = "asyncpg_trek/**/*.py,tests/**/*.py"
+strict = true
+warn_unused_ignores = false
