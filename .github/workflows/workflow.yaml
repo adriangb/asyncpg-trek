@@ -32,6 +32,13 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5433:5432
     strategy:
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10"]

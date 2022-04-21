@@ -10,9 +10,9 @@ logger = getLogger(__name__)
 
 
 async def run(
-    *,
     backend: SupportsBackend[Any],
     directory: Union[str, pathlib.Path],
+    *,
     target_revision: Optional[str] = "HEAD",
 ) -> None:
     revisions = collect_sorted_versions(pathlib.Path(directory), backend)

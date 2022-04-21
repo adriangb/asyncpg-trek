@@ -30,7 +30,7 @@ VALUES ($1, $2)
 """
 
 
-class AsyncpgBackend(SupportsBackend[asyncpg.Connection]):
+class AsyncpgBackend:
     def __init__(self, connection: asyncpg.Connection) -> None:
         self.connection = connection
 
