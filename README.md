@@ -25,7 +25,10 @@ from asyncpg_trek.asyncpg import AsyncpgBackend
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
-async def run_migrations(conn: asyncpg.Connection, target_revision: Optional[str] = None) -> None:
+async def run_migrations(
+    conn: asyncpg.Connection,
+    target_revision: Optional[str] = None,
+) -> None:
     backend = AsyncpgBackend(conn)
     await run(backend, MIGRATIONS_DIR, target_revision=target_revision)
 ```
