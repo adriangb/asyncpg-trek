@@ -5,8 +5,8 @@ from uuid import uuid4
 import asyncpg  # type: ignore[import]
 import pytest
 
-from asyncpg_trek.asyncpg import AsyncpgBackend
 from asyncpg_trek import run
+from asyncpg_trek.asyncpg import AsyncpgBackend
 
 
 @pytest.fixture
@@ -26,7 +26,9 @@ async def admin_connection() -> AsyncIterator[asyncpg.Connection]:
 
 @pytest.fixture
 @pytest.mark.asyncio
-async def db_connection(admin_connection: asyncpg.Connection) -> AsyncIterator[asyncpg.Connection]:
+async def db_connection(
+    admin_connection: asyncpg.Connection,
+) -> AsyncIterator[asyncpg.Connection]:
     db_name = f'tmp_{str(uuid4()).replace("-", "_")}'
     await admin_connection.execute(f"CREATE DATABASE {db_name}")  # type: ignore
     try:
@@ -67,8 +69,12 @@ async def test_run_migrations_failure(db_connection: asyncpg.Connection) -> None
 
     # exceptions should be propagated up
     with pytest.raises(asyncpg.UndefinedTableError):
-        await run(backend, MIGRATIONS_FOLDER, target_revision="2022_04_10_12_34_00_mig3_bad_migration")
-    
+        await run(
+            backend,
+            MIGRATIONS_FOLDER,
+            target_revision="2022_04_10_12_34_00_mig3_bad_migration",
+        )
+
     # the changes should be reverted because migrations are run in a transaction
     record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
     assert record["name"] == "Anakin"

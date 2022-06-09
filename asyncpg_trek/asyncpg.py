@@ -4,8 +4,6 @@ from typing import AsyncContextManager, AsyncIterator, Awaitable, Callable, Opti
 
 import asyncpg  # type: ignore
 
-from asyncpg_trek._backend import SupportsBackend
-
 CREATE_TABLE = """\
 CREATE TABLE IF NOT EXISTS migrations (
     id SERIAL PRIMARY KEY,
