@@ -20,17 +20,19 @@ But maybe if you use [asyncpg] and prefer to write migrations as raw SQL (i.e. y
 from pathlib import Path
 
 import asyncpg
-from asyncpg_trek import run
+from asyncpg_trek import plan, execute, Direction
 from asyncpg_trek.asyncpg import AsyncpgBackend
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
-async def run_migrations(
+async def migrate(
     conn: asyncpg.Connection,
     target_revision: Optional[str] = None,
 ) -> None:
     backend = AsyncpgBackend(conn)
-    await run(backend, MIGRATIONS_DIR, target_revision=target_revision)
+    async with backend.connect() as conn:
+        planned = await plan(backend, MIGRATIONS_DIR, target_revision=target_revision, direction=Direction.up)
+        await execute(conn, planned)
 ```
 
 You could make this an entrypoint in a docker image, an admin endpoint in your API or a helper function in your tests (or all of the above).

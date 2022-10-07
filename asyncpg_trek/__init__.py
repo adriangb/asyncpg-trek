@@ -1,3 +1,10 @@
-from asyncpg_trek.run import run
+from asyncpg_trek._backend import SupportsBackend
+from asyncpg_trek._run import execute, plan
+from asyncpg_trek._types import Direction
 
-__all__ = ["run"]
+__all__ = [
+    "SupportsBackend",
+    "plan",
+    "execute",
+    "Direction",
+]

@@ -40,7 +40,7 @@ class AsyncpgBackend:
 
         return cm()
 
-    async def create_table(self, connection: asyncpg.Connection) -> None:
+    async def create_table_idempotent(self, connection: asyncpg.Connection) -> None:
         await connection.execute(CREATE_TABLE)  # type: ignore
 
     async def get_current_revision(

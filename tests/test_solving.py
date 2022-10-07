@@ -1,181 +1,220 @@
 from dataclasses import dataclass
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import List, Sequence
 
 import pytest
 
-from asyncpg_trek._revision import Revision
-from asyncpg_trek._solver import MigrationNode, NoSolutionError, find_migration_path
-from asyncpg_trek._typing import Literal
+from asyncpg_trek._solver import find_migration_path
+from asyncpg_trek._types import Direction, Migration
 
-Direction = Literal["up", "down"]
+Mig = Migration[None]
 
 
 @dataclass
-class Op:
-    rev: int
-    direction: Direction
+class OperationStub:
+    from_rev: int
+    to_rev: int
+
+    @property
+    def id(self) -> str:
+        return f"{self.from_rev}->{self.to_rev}"
 
     async def __call__(self, connection: None) -> None:
         ...
 
 
-def rev(num: int, up: bool = True, down: bool = True) -> Revision[None]:
-    return Revision(
-        f"{num}",
-        upgrade=Op(num, "up") if up else None,
-        downgrade=Op(num, "down") if down else None,
-    )
+def make_mig(from_rev: int, to_rev: int, dir: Direction) -> Mig:
+    op = OperationStub(from_rev, to_rev)
+    return Migration(op, str(from_rev), str(to_rev), dir)
 
 
-def extract_path(got: Sequence[MigrationNode[None]]) -> List[Op]:
-    res: "List[Op]" = []
+def extract_path(got: Sequence[Mig]) -> List[str]:
+    res: List[str] = []
     for node in got:
-        assert isinstance(node.operation, Op)
-        res.append(node.operation)
+        assert isinstance(node.operation, OperationStub)
+        res.append(node.operation.id)
     return res
 
 
-@pytest.mark.parametrize(
-    "revisions,current,target,expected_path",
-    [
-        ([], None, None, None),
-        ([rev(1)], None, None, None),
-        ([rev(1)], None, "1", [(1, "up")]),
-        ([rev(1)], None, "HEAD", [(1, "up")]),
-        ([rev(1)], "1", None, [(1, "down")]),
-        ([rev(1)], "1", "1", None),
-        ([rev(1)], "1", "HEAD", None),
-        ([rev(1), rev(2)], None, None, None),
-        ([rev(1), rev(2)], None, "1", [(1, "up")]),
-        ([rev(1), rev(2)], None, "2", [(1, "up"), (2, "up")]),
-        ([rev(1), rev(2)], None, "HEAD", [(1, "up"), (2, "up")]),
-        ([rev(1), rev(2)], "1", None, [(1, "down")]),
-        ([rev(1), rev(2)], "1", "1", None),
-        ([rev(1), rev(2)], "1", "2", [(2, "up")]),
-        ([rev(1), rev(2)], "1", "HEAD", [(2, "up")]),
-        ([rev(1), rev(2)], "2", None, [(2, "down"), (1, "down")]),
-        ([rev(1), rev(2)], "2", "1", [(2, "down")]),
-        ([rev(1), rev(2)], "2", "2", None),
-        ([rev(1), rev(2)], "2", "HEAD", None),
-        ([rev(1), rev(2), rev(3), rev(4)], None, None, None),
-        ([rev(1), rev(2), rev(3), rev(4)], None, "1", [(1, "up")]),
-        ([rev(1), rev(2), rev(3), rev(4)], None, "2", [(1, "up"), (2, "up")]),
-        (
-            [rev(1), rev(2), rev(3), rev(4)],
-            None,
-            "3",
-            [(1, "up"), (2, "up"), (3, "up")],
-        ),
-        (
-            [rev(1), rev(2), rev(3), rev(4)],
-            None,
-            "4",
-            [(1, "up"), (2, "up"), (3, "up"), (4, "up")],
-        ),
-        (
-            [rev(1), rev(2), rev(3), rev(4)],
-            None,
-            "HEAD",
-            [(1, "up"), (2, "up"), (3, "up"), (4, "up")],
-        ),
-        ([rev(1), rev(2), rev(3), rev(4)], "1", None, [(1, "down")]),
-        ([rev(1), rev(2), rev(3), rev(4)], "1", "1", None),
-        ([rev(1), rev(2), rev(3), rev(4)], "1", "2", [(2, "up")]),
-        ([rev(1), rev(2), rev(3), rev(4)], "1", "3", [(2, "up"), (3, "up")]),
-        ([rev(1), rev(2), rev(3), rev(4)], "1", "4", [(2, "up"), (3, "up"), (4, "up")]),
-        (
-            [rev(1), rev(2), rev(3), rev(4)],
-            "1",
-            "HEAD",
-            [(2, "up"), (3, "up"), (4, "up")],
-        ),
-        (
-            [rev(1), rev(2), rev(3), rev(4)],
-            "3",
-            None,
-            [(3, "down"), (2, "down"), (1, "down")],
-        ),
-        ([rev(1), rev(2), rev(3), rev(4)], "3", "1", [(3, "down"), (2, "down")]),
-        ([rev(1), rev(2), rev(3), rev(4)], "3", "2", [(3, "down")]),
-        ([rev(1), rev(2), rev(3), rev(4)], "3", "3", None),
-        ([rev(1), rev(2), rev(3), rev(4)], "3", "4", [(4, "up")]),
-        ([rev(1), rev(2), rev(3), rev(4)], "3", "HEAD", [(4, "up")]),
-        (
-            [rev(1), rev(2), rev(3), rev(4)],
-            "4",
-            None,
-            [(4, "down"), (3, "down"), (2, "down"), (1, "down")],
-        ),
-        (
-            [rev(1), rev(2), rev(3), rev(4)],
-            "4",
-            "1",
-            [(4, "down"), (3, "down"), (2, "down")],
-        ),
-        ([rev(1), rev(2), rev(3), rev(4)], "4", "2", [(4, "down"), (3, "down")]),
-        ([rev(1), rev(2), rev(3), rev(4)], "4", "3", [(4, "down")]),
-        ([rev(1), rev(2), rev(3), rev(4)], "4", "4", None),
-        ([rev(1), rev(2), rev(3), rev(4)], "4", "HEAD", None),
-    ],
-)
-def test_find_single_path(
-    revisions: Sequence[Revision[None]],
-    current: Optional[str],
-    target: Optional[str],
-    expected_path: List[Tuple[int, Direction]],
-) -> None:
-    maybe_path = find_migration_path(current, target, revisions)
-    if expected_path is None:
-        assert maybe_path is None
-        return
-    assert maybe_path is not None
-    direction, path = maybe_path
-    assert direction == {o for _, o in expected_path}.pop()
-    assert extract_path(path) == [Op(r, o) for r, o in expected_path]
+cyclic_graph = [
+    make_mig(0, 1, Direction.up),
+    make_mig(1, 0, Direction.up),
+    make_mig(1, 0, Direction.down),
+]
 
-
-def test_no_revisions() -> None:
-    with pytest.raises(NoSolutionError):
-        find_migration_path(None, "foo", [])
-    with pytest.raises(NoSolutionError):
-        find_migration_path("foo", None, [])
-
-
-def test_unknown_target() -> None:
-    with pytest.raises(ValueError):
-        find_migration_path(None, "foo", [Revision("bar")])
-
-
-def test_unknown_current() -> None:
-    with pytest.raises(ValueError):
-        find_migration_path("foo", "bar", [Revision("bar")])
+simple_graph = [
+    make_mig(0, 1, Direction.up),
+    make_mig(1, 0, Direction.down),
+    make_mig(1, 2, Direction.up),
+    make_mig(2, 1, Direction.down),
+    make_mig(1, 3, Direction.up),
+    make_mig(3, 2, Direction.down),
+    make_mig(2, 4, Direction.up),
+    make_mig(4, 2, Direction.down),
+]
 
 
 @pytest.mark.parametrize(
-    "current,target,revisions",
+    "migrations,current,target,expected_path",
     [
-        [None, "1", [rev(1, up=False, down=False)]],
-        [None, "2", [rev(1, up=False, down=False), rev(2, up=False, down=False)]],
-        ["1", "2", [rev(1, up=False, down=False), rev(2, up=False, down=False)]],
+        (simple_graph, 0, 0, []),
+        (simple_graph, 0, 1, ["0->1"]),
+        (simple_graph, 0, 2, ["0->1", "1->2"]),
+        (simple_graph, 0, 3, ["0->1", "1->3"]),
+        (simple_graph, 0, 4, ["0->1", "1->2", "2->4"]),
+        (simple_graph, 1, 1, []),
+        (simple_graph, 1, 2, ["1->2"]),
+        (simple_graph, 1, 3, ["1->3"]),
+        (simple_graph, 1, 4, ["1->2", "2->4"]),
+        (simple_graph, 2, 2, []),
+        # 2 -> 3 is not possible!
+        (simple_graph, 2, 4, ["2->4"]),
+        (simple_graph, 4, 4, []),
+        (cyclic_graph, 0, 1, ["0->1"]),
+        (cyclic_graph, 1, 0, ["1->0"]),
     ],
 )
-def test_no_upgrade(
-    current: Optional[str], target: Optional[str], revisions: List[Revision[Any]]
+def test_find_single_path_up(
+    migrations: Sequence[Mig],
+    current: int,
+    target: int,
+    expected_path: List[str],
 ) -> None:
-    with pytest.raises(NoSolutionError, match="Cannot upgrade to"):
-        find_migration_path(current, target, revisions)
+    plan = find_migration_path(
+        str(current), str(target), direction=Direction.up, migrations=migrations
+    )
+    path = extract_path(plan)
+    assert path == expected_path
 
 
 @pytest.mark.parametrize(
-    "current,target,revisions",
+    "migrations,current,target",
     [
-        ["1", None, [rev(1, up=False, down=False)]],
-        ["2", "1", [rev(1, up=False, down=False), rev(2, up=False, down=False)]],
-        ["2", None, [rev(1, up=False, down=False), rev(2, up=False, down=False)]],
+        (simple_graph, 100, 1),
     ],
 )
-def test_no_downgrade_path(
-    current: Optional[str], target: Optional[str], revisions: List[Revision[Any]]
+def test_find_path_current_does_not_exist(
+    migrations: Sequence[Mig],
+    current: int,
+    target: int,
 ) -> None:
-    with pytest.raises(NoSolutionError, match="Cannot downgrade from"):
-        find_migration_path(current, target, revisions)
+    with pytest.raises(LookupError):
+        find_migration_path(
+            str(current), str(target), direction=Direction.up, migrations=migrations
+        )
+
+
+@pytest.mark.parametrize(
+    "migrations,current,target",
+    [
+        (simple_graph, 0, 100),
+    ],
+)
+def test_find_path_target_does_not_exist(
+    migrations: Sequence[Mig],
+    current: int,
+    target: int,
+) -> None:
+    with pytest.raises(LookupError):
+        find_migration_path(
+            str(current), str(target), direction=Direction.up, migrations=migrations
+        )
+
+
+@pytest.mark.parametrize(
+    "migrations,current,target",
+    [
+        (simple_graph, 2, 3),
+    ],
+)
+def test_find_single_path_up_no_solution(
+    migrations: Sequence[Mig],
+    current: int,
+    target: int,
+) -> None:
+    with pytest.raises(LookupError):
+        find_migration_path(
+            str(current), str(target), direction=Direction.up, migrations=migrations
+        )
+
+
+@pytest.mark.parametrize(
+    "migrations,current,target",
+    [
+        (simple_graph, 2, 3),
+    ],
+)
+def test_cycles(
+    migrations: Sequence[Mig],
+    current: int,
+    target: int,
+) -> None:
+    with pytest.raises(LookupError):
+        find_migration_path(
+            str(current), str(target), direction=Direction.up, migrations=migrations
+        )
+
+
+@pytest.mark.parametrize(
+    "migrations,current,target",
+    [
+        ([], 0, 1),
+    ],
+)
+def test_empty_migrations(
+    migrations: Sequence[Mig],
+    current: int,
+    target: int,
+) -> None:
+    with pytest.raises(LookupError):
+        find_migration_path(
+            str(current), str(target), direction=Direction.up, migrations=migrations
+        )
+
+
+@pytest.mark.parametrize(
+    "migrations,current,target,expected_path",
+    [
+        (simple_graph, 0, 0, []),
+        (simple_graph, 1, 0, ["1->0"]),
+        (simple_graph, 2, 0, ["2->1", "1->0"]),
+        (simple_graph, 3, 0, ["3->2", "2->1", "1->0"]),
+        (simple_graph, 4, 0, ["4->2", "2->1", "1->0"]),
+        (simple_graph, 1, 1, []),
+        (simple_graph, 2, 1, ["2->1"]),
+        (simple_graph, 3, 1, ["3->2", "2->1"]),
+        (simple_graph, 4, 1, ["4->2", "2->1"]),
+        (simple_graph, 2, 2, []),
+        (simple_graph, 3, 2, ["3->2"]),
+        (simple_graph, 4, 2, ["4->2"]),
+        (simple_graph, 4, 4, []),
+        (cyclic_graph, 1, 0, ["1->0"]),
+    ],
+)
+def test_find_single_path_down(
+    migrations: Sequence[Mig],
+    current: int,
+    target: int,
+    expected_path: List[str],
+) -> None:
+    plan = find_migration_path(
+        str(current), str(target), direction=Direction.down, migrations=migrations
+    )
+    path = extract_path(plan)
+    assert path == expected_path
+
+
+@pytest.mark.parametrize(
+    "migrations,current,target",
+    [
+        (cyclic_graph, 0, 1),
+    ],
+)
+def test_find_path_down_not_found(
+    migrations: Sequence[Mig],
+    current: int,
+    target: int,
+) -> None:
+    with pytest.raises(LookupError):
+        find_migration_path(
+            str(current), str(target), direction=Direction.down, migrations=migrations
+        )

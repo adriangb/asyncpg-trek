@@ -1,1 +1,0 @@
-INSERT INTO people(name) VALUES ('Luke Skywalker')

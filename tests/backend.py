@@ -33,7 +33,7 @@ class InMemoryBackend:
 
         return cm()
 
-    async def create_table(self, connection: sqlite3.Connection) -> None:
+    async def create_table_idempotent(self, connection: sqlite3.Connection) -> None:
         connection.execute(CREATE_TABLE)
 
     async def get_current_revision(

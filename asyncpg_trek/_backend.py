@@ -10,7 +10,7 @@ class SupportsBackend(Protocol[T]):
     def connect(self) -> AsyncContextManager[T]:
         ...
 
-    async def create_table(self, connection: T) -> None:
+    async def create_table_idempotent(self, connection: T) -> None:
         ...
 
     async def get_current_revision(self, connection: T) -> Optional[str]:

@@ -1,22 +1,20 @@
-from dataclasses import dataclass
+from collections import defaultdict, deque
 from itertools import tee
-from typing import Generic, Iterable, List, Optional, Sequence, Tuple, TypeVar
+from typing import (
+    Collection,
+    Deque,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Sequence,
+    Tuple,
+    TypeVar,
+)
 
-from asyncpg_trek._revision import Operation, Revision
-from asyncpg_trek._typing import Literal
+from asyncpg_trek._types import Direction, Migration, Revision
 
 T = TypeVar("T")
-
-
-class NoSolutionError(Exception):
-    pass
-
-
-@dataclass
-class MigrationNode(Generic[T]):
-    from_revision: Optional[Revision[T]]
-    to_revision: Optional[Revision[T]]
-    operation: Operation[T]
 
 
 def pairwise(iterable: Iterable[T]) -> Iterable[Tuple[T, T]]:
@@ -26,96 +24,43 @@ def pairwise(iterable: Iterable[T]) -> Iterable[Tuple[T, T]]:
     return zip(a, b)
 
 
-def check_upgrade(
-    current: Optional[Revision[T]], *revisions: Revision[T]
-) -> Sequence[MigrationNode[T]]:
-    res: "List[MigrationNode[T]]" = []
-    for cur, nxt in pairwise((current, *revisions)):
-        assert nxt is not None
-        if cur is None:
-            if nxt.upgrade is None:
-                raise NoSolutionError(
-                    f"Cannot upgrade to {nxt.revision}"
-                    f" because {nxt.revision} has no upgrade path"
-                )
-            res.append(MigrationNode(None, nxt, nxt.upgrade))
-            continue
-        if nxt.upgrade is None:
-            raise NoSolutionError(
-                f"Cannot upgrade to {nxt.revision}"
-                f" because {nxt.revision} has no upgrade path"
-            )
-        res.append(MigrationNode(cur, nxt, nxt.upgrade))
-    return res
-
-
-def check_downgrade(
-    current: Revision[T], *revisions: Optional[Revision[T]]
-) -> Sequence[MigrationNode[T]]:
-    res: "List[MigrationNode[T]]" = []
-    for cur, nxt in pairwise((current, *revisions)):
-        assert cur is not None
-        if nxt is None:
-            if cur.downgrade is None:
-                raise NoSolutionError(
-                    f"Cannot downgrade from {cur.revision}"
-                    f" because {cur.revision} has no downgrade path"
-                )
-            res.append(MigrationNode(cur, nxt, cur.downgrade))
-            return res
-        if cur.downgrade is None:
-            raise NoSolutionError(
-                f"Cannot downgrade from {cur.revision}"
-                f" because {cur.revision} has no downgrade path"
-            )
-        res.append(MigrationNode(cur, nxt, cur.downgrade))
-    return res
-
-
-Direction = Literal["up", "down"]
+def shortest_path(graph: Mapping[T, Sequence[T]], start: T, end: T) -> Sequence[T]:
+    queue: Deque[List[T]] = deque()
+    queue.append([start])
+    while queue:
+        path = queue.popleft()
+        node = path[-1]
+        if node == end:
+            return path
+        for adjacent in graph.get(node, ()):
+            new_path = path.copy()
+            new_path.append(adjacent)
+            queue.append(new_path)
+    raise LookupError
 
 
 def find_migration_path(
-    current: Optional[str], target: Optional[str], revisions: Sequence[Revision[T]]
-) -> Optional[Tuple[Direction, Sequence[MigrationNode[T]]]]:
-    if len(revisions) == 0:
-        if not (current is None and target is None):
-            raise NoSolutionError
-        return None
+    current: Revision,
+    target: Revision,
+    direction: Direction,
+    migrations: Collection[Migration[T]],
+) -> Sequence[Migration[T]]:
+    migrations = [m for m in migrations if m.direction == direction]
+    edges: Dict[Tuple[Revision, Revision], Migration[T]] = {}
+    for migration in migrations:
+        key = (migration.from_rev, migration.to_rev)
+        if key in edges:
+            raise RuntimeError(
+                "Duplicate migration"
+                f" {migration.from_rev} -> {migration.from_rev} found!"
+            )
+        edges[(migration.from_rev, migration.to_rev)] = migration
 
-    revision_ids = [rev.revision for rev in revisions]
-    known_revision_ids = set(revision_ids)
-
-    if target is None:
-        if current is None:
-            return None
-        return "down", check_downgrade(
-            *revisions[revision_ids.index(current) :: -1], None
-        )
-    elif target == "HEAD":
-        target = revisions[-1].revision
-    elif target not in known_revision_ids:
-        raise ValueError(f"Unknown target revision {target}")
-
-    res: "List[Revision[T]]" = []
-
-    if current is None:
-        for rev in revisions:
-            res.append(rev)
-            if rev.revision == target:
-                break
-        return "up", check_upgrade(None, *res)
-    elif current not in known_revision_ids:
-        raise ValueError(f"Unknown current revision {current}")
-
-    if current == target:
-        return None
-
-    idx_current, idx_target = revision_ids.index(current), revision_ids.index(target)
-    if idx_current < idx_target:
-        return "up", check_upgrade(
-            *revisions[idx_current:idx_target], revisions[idx_target]
-        )
-    return "down", check_downgrade(
-        revisions[idx_current], *reversed(revisions[idx_target:idx_current])
-    )
+    rev_graph: Dict[Revision, List[Revision]] = defaultdict(list)
+    for frm, to in edges.keys():
+        rev_graph[frm].append(to)
+    try:
+        path = shortest_path(rev_graph, current, target)
+    except LookupError:
+        raise LookupError(f"No path found from {current} to rev {target} found")
+    return [edges[(frm, to)] for frm, to in pairwise(path)]

@@ -5,7 +5,7 @@ from uuid import uuid4
 import asyncpg  # type: ignore[import]
 import pytest
 
-from asyncpg_trek import run
+from asyncpg_trek import Direction, execute, plan
 from asyncpg_trek.asyncpg import AsyncpgBackend
 
 
@@ -52,29 +52,40 @@ MIGRATIONS_FOLDER = Path(__file__).parent / "asyncpg_revisions"
 @pytest.mark.asyncio
 async def test_run_migrations(db_connection: asyncpg.Connection) -> None:
     backend = AsyncpgBackend(db_connection)
-    await run(backend, MIGRATIONS_FOLDER, target_revision="2022_04_10_12_34_00_mig1")
-    record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
-    assert record is None
-    await run(backend, MIGRATIONS_FOLDER, target_revision="2022_04_10_12_34_00_mig2")
-    record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
-    assert record["name"] == "Anakin"
+    async with backend.connect() as conn:
+        planned = await plan(conn, backend, MIGRATIONS_FOLDER, "rev1", Direction.up)
+        await execute(conn, backend, planned)
+        record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
+        assert record is None
+
+        planned = await plan(conn, backend, MIGRATIONS_FOLDER, "rev2", Direction.up)
+        await execute(conn, backend, planned)
+        record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
+        assert record and record["name"] == "Anakin"  # type: ignore
 
 
 @pytest.mark.asyncio
 async def test_run_migrations_failure(db_connection: asyncpg.Connection) -> None:
     backend = AsyncpgBackend(db_connection)
-    await run(backend, MIGRATIONS_FOLDER, target_revision="2022_04_10_12_34_00_mig2")
-    record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
-    assert record["name"] == "Anakin"
+    async with backend.connect() as conn:
+        planned = await plan(conn, backend, MIGRATIONS_FOLDER, "rev2", Direction.up)
+        await execute(conn, backend, planned)
+        record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
+        assert record and record["name"] == "Anakin"  # type: ignore
 
-    # exceptions should be propagated up
-    with pytest.raises(asyncpg.UndefinedTableError):
-        await run(
-            backend,
-            MIGRATIONS_FOLDER,
-            target_revision="2022_04_10_12_34_00_mig3_bad_migration",
-        )
+    async with backend.connect() as conn:
+        # rev3 deletes everything
+        planned = await plan(conn, backend, MIGRATIONS_FOLDER, "rev3", Direction.up)
+        await execute(conn, backend, planned)
+        record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
+        assert record is None
 
-    # the changes should be reverted because migrations are run in a transaction
-    record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
-    assert record["name"] == "Anakin"
+        planned = await plan(conn, backend, MIGRATIONS_FOLDER, "rev4bad", Direction.up)
+        # exceptions should be propagated up
+        with pytest.raises(asyncpg.UndefinedTableError):
+            await execute(conn, backend, planned)
+
+    async with backend.connect() as conn:
+        # the changes should be reverted because migrations are run in a transaction
+        record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
+        assert record and record["name"] == "Anakin"  # type: ignore
