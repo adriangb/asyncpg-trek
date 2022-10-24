@@ -27,7 +27,7 @@ MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 async def migrate(
     conn: asyncpg.Connection,
-    target_revision: Optional[str] = None,
+    target_revision: str,
 ) -> None:
     backend = AsyncpgBackend(conn)
     async with backend.connect() as conn:
@@ -36,3 +36,6 @@ async def migrate(
 ```
 
 You could make this an entrypoint in a docker image, an admin endpoint in your API or a helper function in your tests (or all of the above).
+How you run your migrations depends on the complexity of your system.
+For example, for simple systems it may be easy to run migrations on app startup based on a hardcoded revision.
+For more complex systems you may want to run migrations manually or via an admin API.
