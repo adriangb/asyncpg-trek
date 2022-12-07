@@ -31,8 +31,8 @@ async def migrate(
 ) -> None:
     backend = AsyncpgBackend(conn)
     async with backend.connect() as conn:
-        planned = await plan(backend, MIGRATIONS_DIR, target_revision=target_revision, direction=Direction.up)
-        await execute(conn, planned)
+        planned = await plan(conn, backend, MIGRATIONS_DIR, target_revision=target_revision, direction=Direction.up)
+        await execute(conn, backend, planned)
 ```
 
 You could make this an entrypoint in a docker image, an admin endpoint in your API or a helper function in your tests (or all of the above).
