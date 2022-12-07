@@ -10,7 +10,7 @@ from asyncpg_trek.asyncpg import AsyncpgBackend
 
 
 @pytest.fixture
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def admin_connection() -> AsyncIterator[asyncpg.Connection]:
     async with asyncpg.create_pool(  # type: ignore
         host="localhost",
@@ -25,7 +25,7 @@ async def admin_connection() -> AsyncIterator[asyncpg.Connection]:
 
 
 @pytest.fixture
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def db_connection(
     admin_connection: asyncpg.Connection,
 ) -> AsyncIterator[asyncpg.Connection]:
@@ -49,7 +49,7 @@ async def db_connection(
 MIGRATIONS_FOLDER = Path(__file__).parent / "asyncpg_revisions"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_run_migrations(db_connection: asyncpg.Connection) -> None:
     backend = AsyncpgBackend(db_connection)
     async with backend.connect() as conn:
@@ -64,7 +64,7 @@ async def test_run_migrations(db_connection: asyncpg.Connection) -> None:
         assert record and record["name"] == "Anakin"  # type: ignore
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_run_migrations_failure(db_connection: asyncpg.Connection) -> None:
     backend = AsyncpgBackend(db_connection)
     async with backend.connect() as conn:

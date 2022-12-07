@@ -1,6 +1,13 @@
 import enum
+import sys
 from dataclasses import dataclass
-from typing import Awaitable, Callable, Generic, Literal, TypeVar
+from typing import Awaitable, Callable, Generic, TypeVar
+
+if sys.version_info < (3, 8):
+    from typing_extensions import Literal
+else:
+    from typing import Literal
+
 
 T = TypeVar("T")
 
