@@ -1,6 +1,7 @@
 import pathlib
-from typing import AsyncContextManager, Awaitable, Callable, Optional, TypeVar
+from typing import AsyncContextManager, Optional, TypeVar
 
+from asyncpg_trek._types import Operation
 from asyncpg_trek._typing import Protocol
 
 T = TypeVar("T")
@@ -23,5 +24,5 @@ class SupportsBackend(Protocol[T]):
     ) -> None:
         ...
 
-    def execute_sql_file(self, path: pathlib.Path) -> Callable[[T], Awaitable[None]]:
+    def build_operation_from_sql_file(self, path: pathlib.Path) -> Operation:
         ...

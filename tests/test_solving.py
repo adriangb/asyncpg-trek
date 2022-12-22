@@ -18,7 +18,7 @@ class OperationStub:
     def id(self) -> str:
         return f"{self.from_rev}->{self.to_rev}"
 
-    async def __call__(self, connection: None) -> None:
+    async def __call__(self) -> None:
         ...
 
 

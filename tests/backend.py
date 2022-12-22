@@ -55,9 +55,9 @@ class InMemoryBackend:
             (from_revision, to_revision),
         )
 
-    def execute_sql_file(
+    def build_operation_from_sql_file(
         self, path: pathlib.Path
-    ) -> Callable[[sqlite3.Connection], Awaitable[None]]:
+    ) -> Callable[[], Awaitable[None]]:
         async def exec() -> None:
             with open(path) as f:
                 query = f.read()

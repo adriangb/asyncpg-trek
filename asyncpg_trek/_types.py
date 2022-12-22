@@ -12,7 +12,7 @@ else:
 T = TypeVar("T")
 
 
-Operation = Callable[[T], Awaitable[None]]
+Operation = Callable[[], Awaitable[None]]
 
 
 Revision = str
@@ -26,7 +26,7 @@ class Direction(enum.Enum):
 
 @dataclass(frozen=True)
 class Migration(Generic[T]):
-    operation: Operation[T]
+    operation: Operation
     from_rev: Revision
     to_rev: Revision
     direction: Direction

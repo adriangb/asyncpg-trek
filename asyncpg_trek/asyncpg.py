@@ -1,8 +1,10 @@
 import pathlib
 from contextlib import asynccontextmanager
-from typing import AsyncContextManager, AsyncIterator, Awaitable, Callable, Optional
+from typing import AsyncContextManager, AsyncIterator, Optional
 
 import asyncpg  # type: ignore
+
+from asyncpg_trek._types import Operation
 
 CREATE_TABLE = """\
 CREATE TABLE IF NOT EXISTS migrations (
@@ -53,13 +55,11 @@ class AsyncpgBackend:
     ) -> None:
         await self.connection.execute(RECORD_REVISION, from_revision, to_revision)  # type: ignore
 
-    def execute_sql_file(
-        self, path: pathlib.Path
-    ) -> Callable[[asyncpg.Connection], Awaitable[None]]:
+    def build_operation_from_sql_file(self, path: pathlib.Path) -> Operation:
         async def exec() -> None:
             with open(path) as f:
                 query = f.read()
 
-            await self.connection.execute(query)
+            await self.connection.execute(query)  # type: ignore
 
         return exec

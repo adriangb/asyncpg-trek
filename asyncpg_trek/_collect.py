@@ -3,10 +3,10 @@ import re
 from dataclasses import dataclass
 from functools import partial
 from importlib.machinery import SourceFileLoader
-from typing import Collection, Generic, List, TypeVar, cast
+from typing import Awaitable, Callable, Collection, Generic, List, TypeVar, cast
 
 from asyncpg_trek._backend import SupportsBackend
-from asyncpg_trek._types import INITIAL_REVISION, Direction, Migration, Operation
+from asyncpg_trek._types import INITIAL_REVISION, Direction, Migration
 
 T = TypeVar("T")
 
@@ -38,19 +38,21 @@ def collect_migrations_from_filesystem(
         else:
             direction = Direction.down
         from_rev, to_rev = match.group("from"), match.group("to")
+        mig: Migration[T]
         if format == "py":
             mod = SourceFileLoader(path.stem, str(path.absolute())).load_module()
-            operation = cast(Operation[T], getattr(mod, "run_migration"))
             mig = Migration(
-                operation=partial(operation, backend.connection),
+                operation=partial(
+                    cast(Callable[[T], Awaitable[None]], getattr(mod, "run_migration")),
+                    backend.connection,
+                ),
                 from_rev=from_rev,
                 to_rev=to_rev,
                 direction=direction,
             )
         else:
-            operation = backend.execute_sql_file(path)
             mig = Migration(
-                operation=operation,
+                operation=backend.build_operation_from_sql_file(path),
                 from_rev=from_rev,
                 to_rev=to_rev,
                 direction=direction,
