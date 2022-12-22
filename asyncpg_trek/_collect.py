@@ -47,7 +47,7 @@ def collect_migrations_from_filesystem(
                 direction=direction,
             )
         else:
-            operation = backend.execute_sql_file(path)
+            operation = backend.prepare_operation_from_sql_file(path)
             mig = Migration(
                 operation=operation,
                 from_rev=from_rev,

@@ -1,7 +1,9 @@
 import pathlib
 import sqlite3
 from contextlib import asynccontextmanager
-from typing import AsyncContextManager, AsyncIterator, Awaitable, Callable, Optional
+from typing import AsyncContextManager, AsyncIterator, Optional
+
+from asyncpg_trek import Operation
 
 CREATE_TABLE = """\
 CREATE TABLE IF NOT EXISTS migrations (
@@ -21,25 +23,15 @@ LIMIT 1;
 """
 
 
-class InMemoryBackend:
-    def __init__(self) -> None:
-        self.connection = sqlite3.connect(":memory:")
+class InMemoryBackendExecutor:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
 
-    def connect(self) -> AsyncContextManager[sqlite3.Connection]:
-        @asynccontextmanager
-        async def cm() -> AsyncIterator[sqlite3.Connection]:
-            with self.connection:
-                yield self.connection
+    async def create_table_idempotent(self) -> None:
+        self.connection.execute(CREATE_TABLE)
 
-        return cm()
-
-    async def create_table_idempotent(self, connection: sqlite3.Connection) -> None:
-        connection.execute(CREATE_TABLE)
-
-    async def get_current_revision(
-        self, connection: sqlite3.Connection
-    ) -> Optional[str]:
-        cur = connection.cursor()
+    async def get_current_revision(self) -> Optional[str]:
+        cur = self.connection.cursor()
         cur.execute(GET_CURRENT_REVISION)
         res = cur.fetchone()
         if not res:
@@ -48,22 +40,36 @@ class InMemoryBackend:
 
     async def record_migration(
         self,
-        connection: sqlite3.Connection,
-        *,
         from_revision: Optional[str],
         to_revision: Optional[str],
     ) -> None:
-        connection.execute(
+        self.connection.execute(
             "INSERT INTO migrations(from_revision, to_revision) VALUES (?, ?)",
             (from_revision, to_revision),
         )
 
-    def execute_sql_file(
+    async def execute_operation(self, operation: Operation[sqlite3.Connection]) -> None:
+        await operation(self.connection)
+
+
+class InMemoryBackend:
+    def __init__(self) -> None:
+        self.connection = sqlite3.connect(":memory:")
+
+    def connect(self) -> AsyncContextManager[InMemoryBackendExecutor]:
+        @asynccontextmanager
+        async def cm() -> AsyncIterator[InMemoryBackendExecutor]:
+            with self.connection:
+                yield InMemoryBackendExecutor(self.connection)
+
+        return cm()
+
+    def prepare_operation_from_sql_file(
         self, path: pathlib.Path
-    ) -> Callable[[sqlite3.Connection], Awaitable[None]]:
-        async def exec(connection: sqlite3.Connection) -> None:
+    ) -> Operation[sqlite3.Connection]:
+        async def operation(connection: sqlite3.Connection) -> None:
             with open(path) as f:
                 query = f.read()
             connection.execute(query)
 
-        return exec
+        return operation
