@@ -54,12 +54,12 @@ async def test_run_migrations(db_connection: asyncpg.Connection) -> None:
     backend = AsyncpgBackend(db_connection)
     async with backend.connect():
         planned = await plan(backend, MIGRATIONS_FOLDER, "rev1", Direction.up)
-        await execute(backend, planned)
+        await execute(planned)
         record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
         assert record is None
 
         planned = await plan(backend, MIGRATIONS_FOLDER, "rev2", Direction.up)
-        await execute(backend, planned)
+        await execute(planned)
         record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
         assert record and record["name"] == "Anakin"  # type: ignore
 
@@ -69,21 +69,21 @@ async def test_run_migrations_failure(db_connection: asyncpg.Connection) -> None
     backend = AsyncpgBackend(db_connection)
     async with backend.connect():
         planned = await plan(backend, MIGRATIONS_FOLDER, "rev2", Direction.up)
-        await execute(backend, planned)
+        await execute(planned)
         record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
         assert record and record["name"] == "Anakin"  # type: ignore
 
     async with backend.connect():
         # rev3 deletes everything
         planned = await plan(backend, MIGRATIONS_FOLDER, "rev3", Direction.up)
-        await execute(backend, planned)
+        await execute(planned)
         record = await db_connection.fetchrow("SELECT name FROM people LIMIT 1")  # type: ignore
         assert record is None
 
         planned = await plan(backend, MIGRATIONS_FOLDER, "rev4bad", Direction.up)
         # exceptions should be propagated up
         with pytest.raises(asyncpg.UndefinedTableError):
-            await execute(backend, planned)
+            await execute(planned)
 
     async with backend.connect():
         # the changes should be reverted because migrations are run in a transaction

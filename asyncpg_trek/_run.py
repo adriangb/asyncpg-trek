@@ -14,12 +14,22 @@ logger = getLogger(__name__)
 T = TypeVar("T")
 
 
+class Plan:
+    def __init__(
+        self,
+        backend: SupportsBackend[T],
+        planned_migrations: Sequence[Migration[T]],
+    ) -> None:
+        self.backend = backend
+        self.planned_migrations = planned_migrations
+
+
 async def plan(
     backend: SupportsBackend[T],
     directory: Union[str, pathlib.Path],
     target_revision: str,
     direction: MigrationDirection,
-) -> Sequence[Migration[T]]:
+) -> Plan:
     migrations = collect_migrations_from_filesystem(pathlib.Path(directory), backend)
     rev_list = "\n".join([f" - {m.from_rev} -> {m.to_rev}" for m in migrations])
     logger.debug(f"Collected migrations from {directory}: {rev_list}")
@@ -32,18 +42,19 @@ async def plan(
     else:
         current_revision = "initial"
         logger.info("No existing revisions found, starting from scratch")
-    return find_migration_path(
+    migrations = find_migration_path(
         current_revision, target_revision, direction=direction, migrations=migrations
+    )
+    return Plan(
+        backend=backend,
+        planned_migrations=migrations,
     )
 
 
-async def execute(
-    backend: SupportsBackend[T],
-    plan: Sequence[Migration[T]],
-) -> None:
-    for mig in plan:
+async def execute(plan: Plan) -> None:
+    for mig in plan.planned_migrations:
         logger.info(f"Running {mig.from_rev} -> {mig.to_rev}")
-        await backend.record_migration(
+        await plan.backend.record_migration(
             from_revision=mig.from_rev,
             to_revision=mig.to_rev,
         )
