@@ -7,17 +7,19 @@ T = TypeVar("T")
 
 
 class SupportsBackend(Protocol[T]):
+    connection: T
+
     def connect(self) -> AsyncContextManager[T]:
         ...
 
-    async def create_table_idempotent(self, connection: T) -> None:
+    async def create_table_idempotent(self) -> None:
         ...
 
-    async def get_current_revision(self, connection: T) -> Optional[str]:
+    async def get_current_revision(self) -> Optional[str]:
         ...
 
     async def record_migration(
-        self, connection: T, *, from_revision: Optional[str], to_revision: Optional[str]
+        self, *, from_revision: Optional[str], to_revision: Optional[str]
     ) -> None:
         ...
 

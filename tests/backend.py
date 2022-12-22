@@ -33,13 +33,11 @@ class InMemoryBackend:
 
         return cm()
 
-    async def create_table_idempotent(self, connection: sqlite3.Connection) -> None:
-        connection.execute(CREATE_TABLE)
+    async def create_table_idempotent(self) -> None:
+        self.connection.execute(CREATE_TABLE)
 
-    async def get_current_revision(
-        self, connection: sqlite3.Connection
-    ) -> Optional[str]:
-        cur = connection.cursor()
+    async def get_current_revision(self) -> Optional[str]:
+        cur = self.connection.cursor()
         cur.execute(GET_CURRENT_REVISION)
         res = cur.fetchone()
         if not res:
@@ -48,12 +46,11 @@ class InMemoryBackend:
 
     async def record_migration(
         self,
-        connection: sqlite3.Connection,
         *,
         from_revision: Optional[str],
         to_revision: Optional[str],
     ) -> None:
-        connection.execute(
+        self.connection.execute(
             "INSERT INTO migrations(from_revision, to_revision) VALUES (?, ?)",
             (from_revision, to_revision),
         )
@@ -61,9 +58,9 @@ class InMemoryBackend:
     def execute_sql_file(
         self, path: pathlib.Path
     ) -> Callable[[sqlite3.Connection], Awaitable[None]]:
-        async def exec(connection: sqlite3.Connection) -> None:
+        async def exec() -> None:
             with open(path) as f:
                 query = f.read()
-            connection.execute(query)
+            self.connection.execute(query)
 
         return exec

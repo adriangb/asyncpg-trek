@@ -1,6 +1,7 @@
 import pathlib
 import re
 from dataclasses import dataclass
+from functools import partial
 from importlib.machinery import SourceFileLoader
 from typing import Collection, Generic, List, TypeVar, cast
 
@@ -41,7 +42,7 @@ def collect_migrations_from_filesystem(
             mod = SourceFileLoader(path.stem, str(path.absolute())).load_module()
             operation = cast(Operation[T], getattr(mod, "run_migration"))
             mig = Migration(
-                operation=operation,
+                operation=partial(operation, backend.connection),
                 from_rev=from_rev,
                 to_rev=to_rev,
                 direction=direction,

@@ -40,30 +40,26 @@ class AsyncpgBackend:
 
         return cm()
 
-    async def create_table_idempotent(self, connection: asyncpg.Connection) -> None:
-        await connection.execute(CREATE_TABLE)  # type: ignore
+    async def create_table_idempotent(self) -> None:
+        await self.connection.execute(CREATE_TABLE)  # type: ignore
 
     async def get_current_revision(
-        self, connection: asyncpg.Connection
+        self,
     ) -> Optional[str]:
-        return await connection.fetchval(GET_CURRENT_REVISION)  # type: ignore
+        return await self.connection.fetchval(GET_CURRENT_REVISION)  # type: ignore
 
     async def record_migration(
-        self,
-        connection: asyncpg.Connection,
-        *,
-        from_revision: Optional[str],
-        to_revision: Optional[str]
+        self, *, from_revision: Optional[str], to_revision: Optional[str]
     ) -> None:
-        await connection.execute(RECORD_REVISION, from_revision, to_revision)  # type: ignore
+        await self.connection.execute(RECORD_REVISION, from_revision, to_revision)  # type: ignore
 
     def execute_sql_file(
         self, path: pathlib.Path
     ) -> Callable[[asyncpg.Connection], Awaitable[None]]:
-        async def exec(connection: asyncpg.Connection) -> None:
+        async def exec() -> None:
             with open(path) as f:
                 query = f.read()
 
-            await connection.execute(query)  # type: ignore
+            await self.connection.execute(query)
 
         return exec
