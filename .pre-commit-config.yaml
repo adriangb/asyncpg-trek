@@ -9,7 +9,7 @@ repos:
       args: ["--autofix"]
     - id: check-merge-conflict
   - repo: https://github.com/pycqa/isort
-    rev: "5.12.0"
+    rev: "5.11.5"
     hooks:
       - id: isort
         name: isort
