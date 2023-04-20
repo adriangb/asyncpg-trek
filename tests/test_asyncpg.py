@@ -49,9 +49,10 @@ async def db_connection(
 MIGRATIONS_FOLDER = Path(__file__).parent / "asyncpg_revisions"
 
 
+@pytest.mark.parametrize("schema", [None, "custom"])
 @pytest.mark.anyio
-async def test_run_migrations(db_connection: asyncpg.Connection) -> None:
-    backend = AsyncpgBackend(db_connection)
+async def test_run_migrations(db_connection: asyncpg.Connection, schema: str) -> None:
+    backend = AsyncpgBackend(db_connection, schema)
     async with backend.connect() as conn:
         planned = await plan(conn, backend, MIGRATIONS_FOLDER, "rev1", Direction.up)
         await execute(conn, backend, planned)
@@ -64,9 +65,12 @@ async def test_run_migrations(db_connection: asyncpg.Connection) -> None:
         assert record and record["name"] == "Anakin"  # type: ignore
 
 
+@pytest.mark.parametrize("schema", [None, "custom"])
 @pytest.mark.anyio
-async def test_run_migrations_failure(db_connection: asyncpg.Connection) -> None:
-    backend = AsyncpgBackend(db_connection)
+async def test_run_migrations_failure(
+    db_connection: asyncpg.Connection, schema: str
+) -> None:
+    backend = AsyncpgBackend(db_connection, schema)
     async with backend.connect() as conn:
         planned = await plan(conn, backend, MIGRATIONS_FOLDER, "rev2", Direction.up)
         await execute(conn, backend, planned)
