@@ -49,7 +49,7 @@ class AsyncpgExecutor:
 
 class AsyncpgBackend:
     def __init__(
-        self, connection: asyncpg.Connection, schema: str | None = "public"
+        self, connection: asyncpg.Connection, schema: Optional[str] = "public"
     ) -> None:
         self.connection = connection
         self.schema = schema or "public"
