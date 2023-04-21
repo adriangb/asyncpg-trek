@@ -7,25 +7,25 @@ import asyncpg  # type: ignore
 from asyncpg_trek._types import Operation
 
 CREATE_TABLE = """\
-CREATE SCHEMA IF NOT EXISTS {schema};
-CREATE TABLE IF NOT EXISTS "{schema}.migrations" (
+CREATE SCHEMA IF NOT EXISTS "{schema}";
+CREATE TABLE IF NOT EXISTS "{schema}".migrations (
     id SERIAL PRIMARY KEY,
     from_revision TEXT,
     to_revision TEXT,
     timestamp TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
-CREATE INDEX ON {schema}.migrations(timestamp);
+CREATE INDEX ON "{schema}".migrations(timestamp);
 """
 
 GET_CURRENT_REVISION = """\
 SELECT to_revision
-FROM {schema}.migrations
+FROM "{schema}".migrations
 ORDER BY id DESC
 LIMIT 1;
 """
 
 RECORD_REVISION = """\
-INSERT INTO {schema}.migrations(from_revision, to_revision)
+INSERT INTO "{schema}".migrations(from_revision, to_revision)
 VALUES ($1, $2)
 """
 
