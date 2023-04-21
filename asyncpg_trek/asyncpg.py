@@ -8,7 +8,7 @@ from asyncpg_trek._types import Operation
 
 CREATE_TABLE = """\
 CREATE SCHEMA IF NOT EXISTS {schema};
-CREATE TABLE IF NOT EXISTS {schema}.migrations (
+CREATE TABLE IF NOT EXISTS "{schema}.migrations" (
     id SERIAL PRIMARY KEY,
     from_revision TEXT,
     to_revision TEXT,
