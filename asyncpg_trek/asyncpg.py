@@ -7,57 +7,59 @@ import asyncpg  # type: ignore
 from asyncpg_trek._types import Operation
 
 CREATE_TABLE = """\
-CREATE TABLE IF NOT EXISTS migrations (
+CREATE SCHEMA IF NOT EXISTS "{schema}";
+CREATE TABLE IF NOT EXISTS "{schema}".migrations (
     id SERIAL PRIMARY KEY,
     from_revision TEXT,
     to_revision TEXT,
     timestamp TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
-CREATE INDEX ON migrations(timestamp);
+CREATE INDEX ON "{schema}".migrations(timestamp);
 """
-
 
 GET_CURRENT_REVISION = """\
 SELECT to_revision
-FROM migrations
+FROM "{schema}".migrations
 ORDER BY id DESC
 LIMIT 1;
 """
 
 RECORD_REVISION = """\
-INSERT INTO migrations(from_revision, to_revision)
+INSERT INTO "{schema}".migrations(from_revision, to_revision)
 VALUES ($1, $2)
 """
 
 
 class AsyncpgExecutor:
-    def __init__(self, connection: asyncpg.Connection) -> None:
+    def __init__(self, connection: asyncpg.Connection, schema: str) -> None:
         self.connection = connection
+        self.schema = schema
 
     async def create_table_idempotent(self) -> None:
-        await self.connection.execute(CREATE_TABLE)  # type: ignore
+        await self.connection.execute(CREATE_TABLE.format(schema=self.schema))  # type: ignore
 
     async def get_current_revision(self) -> Optional[str]:
-        return await self.connection.fetchval(GET_CURRENT_REVISION)  # type: ignore
+        return await self.connection.fetchval(GET_CURRENT_REVISION.format(schema=self.schema))  # type: ignore
 
     async def record_migration(
         self, from_revision: Optional[str], to_revision: Optional[str]
     ) -> None:
-        await self.connection.execute(RECORD_REVISION, from_revision, to_revision)  # type: ignore
+        await self.connection.execute(RECORD_REVISION.format(schema=self.schema), from_revision, to_revision)  # type: ignore
 
     async def execute_operation(self, operation: Operation[asyncpg.Connection]) -> None:
         await operation(self.connection)
 
 
 class AsyncpgBackend:
-    def __init__(self, connection: asyncpg.Connection) -> None:
+    def __init__(self, connection: asyncpg.Connection, schema: str = "public") -> None:
         self.connection = connection
+        self.schema = schema
 
     def connect(self) -> AsyncContextManager[AsyncpgExecutor]:
         @asynccontextmanager
         async def cm() -> AsyncIterator[AsyncpgExecutor]:
             async with self.connection.transaction(isolation="serializable"):  # type: ignore
-                yield AsyncpgExecutor(self.connection)
+                yield AsyncpgExecutor(self.connection, self.schema)
 
         return cm()
 
