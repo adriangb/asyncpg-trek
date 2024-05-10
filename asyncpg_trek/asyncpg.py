@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS "{schema}".migrations (
     to_revision TEXT,
     timestamp TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
-CREATE INDEX ON "{schema}".migrations(timestamp);
+CREATE INDEX IF NOT EXISTS migrations_timestamp_idx ON "{schema}".migrations(timestamp);
 """
 
 GET_CURRENT_REVISION = """\
