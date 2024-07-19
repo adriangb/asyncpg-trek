@@ -14,7 +14,7 @@ install-poetry: .install-poetry
 .init: .install-poetry
 	@echo "---- 📦 Building package ----"
 	rm -rf .venv
-	poetry install
+	poetry install -E asyncpg -E aiosqlite
 	git init .
 	touch .init
 
